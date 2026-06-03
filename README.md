@@ -15,3 +15,5 @@
 ## 文档处理类
 - `pdf-math-convert`： 将pdf转为markdown文本，方便进一步的编辑
 > 特色： 1. 支持数学公示转为LaTex格式  2. Base64编码嵌入图片
+- `markdown-translate`： 用LLM翻译Markdown文本，保留LaTeX数学公式、代码块、图片和所有格式
+> 特色： 1. 保护数学公式/代码/图片不被翻译  2. 支持批量并行翻译  3. 翻译后自动校验完整性

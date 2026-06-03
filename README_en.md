@@ -22,3 +22,7 @@ You may also put it into a project's `skills` folder instead.
 
 > Features: 1. Supports converting math formulas to LaTeX format  2. Embeds images as Base64
 
+- `markdown-translate`: Translate Markdown text with LLM, preserving LaTeX math, code blocks, images, and all formatting
+
+> Features: 1. Protects math/code/images from translation  2. Batch parallel translation  3. Post-translation integrity verification
+

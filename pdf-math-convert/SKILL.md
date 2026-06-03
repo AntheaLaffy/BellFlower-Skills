@@ -11,7 +11,11 @@ description: >-
 # PDF to LaTeX Markdown Converter
 
 Converts a math-heavy PDF into clean Markdown with proper `$...$` inline
-and `$$...$$` display LaTeX math, preserving images as base64 data URIs.
+and `$$...$$` display LaTeX math, preserving images.
+
+Images can be handled in two modes:
+- **Embedded** (default): images kept as base64 data URIs — single file, no external deps
+- **Referenced**: images extracted to an `images/` folder, md uses relative links — smaller md, easier to browse
 
 ## Pipeline Overview
 
@@ -99,14 +103,25 @@ patterns common to docling's OCR output.
 
 **This is the critical phase.** Read `*_clean.md` and fix it in-place.
 
-### Step 3a: Survey the damage
+### Step 3a: Image mode
+
+**Ask the user:** *"Keep images embedded (single file, self-contained) or extract to an `images/` folder (smaller md, easier to browse)?"*
+
+Default to **embedded** (no extraction). If the user chooses referenced mode:
+
+1. Create an `images/` directory next to the markdown file
+2. Scan the markdown for `![](data:image/png;base64,...)` data URIs
+3. For each image, decode the base64, write to `images/img_001.png` (or descriptive name), replace the data URI with a relative path `![](images/img_001.png)`
+4. Record the filename stem for the report (e.g., `Ses1` → `images/Ses1_*.png`)
+
+### Step 3b: Survey the damage
 
 Count and locate all issues:
 ```bash
 grep -n 'formula-not-decoded\|f �\|f �' *_clean.md
 ```
 
-### Step 3b: Fix `<!-- formula-not-decoded -->` placeholders
+### Step 3c: Fix `<!-- formula-not-decoded -->` placeholders
 
 For **each** placeholder, read the ~3 lines of English text **immediately
 before** the placeholder. The text describes the formula in words. Use your
@@ -137,7 +152,7 @@ If a context is **genuinely ambiguous** (rare — most math textbooks state
 the formula in words before showing it), flag it with a comment:
 `<!-- UNCERTAIN: could not infer formula -->` and move on.
 
-### Step 3c: Fix remaining OCR/Unicode issues
+### Step 3d: Fix remaining OCR/Unicode issues
 
 After clearing all placeholders, scan for and fix:
 
@@ -152,14 +167,14 @@ After clearing all placeholders, scan for and fix:
 | `-0.08 ≤ Δx ≤ 0.10` | `$-0.08 \leq \Delta x \leq 0.10$` |
 | `as Q → P` (in prose) | `as $Q \to P$` |
 
-### Step 3d: Clean up partial math-mode
+### Step 3e: Clean up partial math-mode
 
 docling sometimes produces output like `( $x_0$ , f ( $x_0$ ))` where
 adjacent math-mode spans should be a single span. Merge them:
 - `( $x_0$ , f ( $x_0$ ))` → `$(x_0, f(x_0))$`
 - `P = ( $x_0$ , $y_0$ )` → `$P = (x_0, y_0)$`
 
-### Step 3e: Verify
+### Step 3f: Verify
 
 After editing, run:
 ```bash
@@ -174,17 +189,178 @@ Check that `$` signs are balanced:
 ## Phase 4: Rename and Report
 
 Rename the final file to `<input>_enhanced.md` and report:
+- Image mode used (embedded or referenced)
+- How many images were processed (and extracted, if referenced mode)
 - How many `<!-- formula-not-decoded -->` were replaced
 - How many display formulas (`$$...$$`) were added
 - How many inline formulas (`$...$`) were normalized
 - Any remaining issues or uncertainties
 
-## Batch Processing
+### Step 4: Clean Up Intermediate Files
 
-When the user asks to convert multiple PDFs:
-1. Process them sequentially (docling is CPU-heavy and may OOM if parallelized)
-2. Use the same cleanup.py + LLM repair for each
-3. Keep a summary table of results per file
+After the report, **ask the user:** *"Delete intermediate files (`*_raw.md` and `*_clean.md`)?"*
+
+Default to **keep** (no deletion). If the user says yes, remove them:
+
+```bash
+rm <input>_raw.md <input>_clean.md
+```
+
+## Batch Processing (Multiple PDFs)
+
+When the user asks to convert **more than one** PDF, follow this orchestrated
+workflow. The main agent handles the deterministic phases (extraction +
+cleanup), then spawns sub-agents for the LLM repair to avoid context explosion.
+
+### Batch Phase 1: Extract All PDFs
+
+Loop over all input PDFs **sequentially** (docling is CPU-heavy):
+
+```bash
+for pdf in *.pdf; do
+    echo "=== $pdf ==="
+    uv run docling "$pdf" --from pdf --to md --output .
+    mv "${pdf%.pdf}.md" "${pdf%.pdf}_raw.md"
+done
+```
+
+Track successes and failures in a list.
+
+### Batch Phase 2: Cleanup All Raw Files
+
+Loop over all `*_raw.md` files:
+
+```bash
+for f in *_raw.md; do
+    uv run python3 ~/.claude/skills/pdf-math-convert/cleanup.py "$f"
+done
+```
+
+### Batch Phase 3: Ask Image Mode Once
+
+**Ask the user once:** *"Keep images embedded for all files, or extract to `images/` folders?"*
+
+Default to **embedded**. If referenced mode is chosen, note it — sub-agents will
+handle the extraction per file (each sub-agent extracts images for its own files).
+
+### Batch Phase 4: Survey and Plan Sub-Agent Allocation
+
+**Do NOT read any `*_clean.md` files yourself.** Your job is to survey complexity
+and allocate work to sub-agents.
+
+Collect metrics **without reading the content** (single awk command, no multi-prompt):
+
+```bash
+awk 'FNR==1{printf "%s: ", FILENAME} ENDFILE{printf "%d lines, ", NR} /formula-not-decoded/{p++} ENDFILE{printf "%d placeholders\n", p; p=0}' *_clean.md
+```
+
+Use these metrics to partition work. The constraint is **per-agent capacity**,
+not agent count — spawn as many agents as needed:
+
+**Per-agent limit: ≤ 500 lines total or ≤ 15 placeholders total**, whichever hits
+first. A single sub-agent's context window must hold all its files plus the repair
+instructions — exceeding ~500 lines risks context explosion and degraded output.
+
+- Partition files greedily: add files to agent-N until adding the next file would
+  exceed either limit, then start agent-N+1
+- Group files by similar topic when possible (e.g., same lecture series)
+- There is **no cap** on the number of sub-agents; spawn as many as the data demands
+
+### Batch Phase 5: Spawn Sub-Agents for LLM Repair
+
+Use the `Agent` tool with `subagent_type: "general-purpose"` for each sub-agent.
+Spawn them **in parallel** (all in one message) so they run concurrently.
+If there are more than ~10 agents, batch them in groups of 8-10 per message to
+stay under tool-call limits.
+
+Each sub-agent's prompt must be **fully self-contained** — the sub-agent does NOT
+have access to this SKILL.md. Include:
+
+1. **The exact file list** assigned to this agent (by name)
+2. **The image mode** chosen by the user (embedded or referenced)
+3. **The full LLM repair instructions** — copy Steps 3a–3f from Phase 3 above
+   verbatim into the prompt (formula inference rules with examples, OCR fix
+   table, partial math-mode merging, verification steps)
+4. **The expected output**: each file → `<stem>_enhanced.md`
+5. **A requirement to report back** with per-file stats (placeholders
+   replaced, display/inline formulas added, any uncertainties)
+
+Example prompt for a sub-agent:
+
+```
+You are repairing docling-generated markdown files from math PDFs
+(MIT 18.01SC calculus lecture notes). Your task is to apply LLM semantic
+repair to the following files:
+
+  - /home/fuurin/study/calculus/Ses1_clean.md → output as Ses1_enhanced.md
+  - /home/fuurin/study/calculus/Ses2_clean.md → output as Ses2_enhanced.md
+  - /home/fuurin/study/calculus/Ses3_clean.md → output as Ses3_enhanced.md
+
+Image mode: embedded (leave base64 data URIs as-is).
+
+## Instructions
+
+For each _clean.md file:
+
+### Step 1: If image mode is "referenced"
+... [copy Step 3a here] ...
+
+### Step 2: Survey the damage
+... [copy Step 3b here] ...
+
+### Step 3: Fix formula placeholders
+... [copy Step 3c here, including all 3 examples] ...
+
+### Step 4: Fix OCR/Unicode issues
+... [copy Step 3d here, including the full table] ...
+
+### Step 5: Clean up partial math-mode
+... [copy Step 3e here] ...
+
+### Step 6: Verify
+... [copy Step 3f here] ...
+
+## Report
+
+When done, write a summary for each file:
+- File: <name>
+- Formula placeholders replaced: N
+- Display formulas ($$...$$) added: N
+- Inline formulas ($...$) normalized: N
+- Uncertainties: <list or "none">
+```
+
+### Batch Phase 6: Collect Results and Summarize
+
+After all sub-agents complete, verify with a quick audit:
+
+```bash
+for f in *_enhanced.md; do
+    remaining=$(grep -c 'formula-not-decoded' "$f" 2>/dev/null || echo 0)
+    echo "$f: $remaining placeholders remaining"
+done
+```
+
+Then present the summary table to the user:
+
+| File | Placeholders | Display Formulas | Inline Formulas | Image Mode | Status |
+|------|-------------|-----------------|-----------------|------------|--------|
+| Ses1_enhanced.md | 0 | 10 | 135 | embedded | ✓ |
+| Ses2_enhanced.md | 0 | 8 | 92 | embedded | ✓ |
+| ... | ... | ... | ... | ... | ... |
+
+If any file still has `formula-not-decoded` placeholders, flag it and ask the
+user whether to re-repair or inspect manually.
+
+### Batch Phase 7: Clean Up Intermediate Files
+
+After the summary, **ask the user once:** *"Delete all intermediate files (`*_raw.md` and `*_clean.md`)?"*
+
+Default to **keep**. If yes:
+
+```bash
+rm *_raw.md *_clean.md
+```
 
 ## Fallbacks
 
