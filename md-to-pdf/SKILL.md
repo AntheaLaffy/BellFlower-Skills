@@ -51,9 +51,27 @@ The skill will ask you which font to use before generating.
 
 ### 3. Convert
 
+**单个文件:**
 ```bash
 uv run python3 /home/fuurin/.claude/skills/md-to-pdf/convert.py input.md [output.pdf] [--font "Font Name"]
 ```
+
+**批量（多个文件）:**
+```bash
+uv run python3 /home/fuurin/.claude/skills/md-to-pdf/convert.py note1.md note2.md note3.md --font "LXGW WenKai"
+```
+
+**批量（整个目录）:**
+```bash
+uv run python3 /home/fuurin/.claude/skills/md-to-pdf/convert.py ./lectures/ --font "Noto Serif CJK SC"
+```
+
+**Shell 通配符:**
+```bash
+uv run python3 /home/fuurin/.claude/skills/md-to-pdf/convert.py chapter*.md --font "LXGW WenKai"
+```
+
+批量转换会逐个显示进度：`[1/5]`, `[2/5]` … 最后输出汇总 `N 成功, M 失败`。
 
 ## What It Handles
 

@@ -2,7 +2,10 @@
 """Markdown → PDF 转换器（纯Python）
 
 用法:
-  uv run python3 convert.py input.md [output.pdf] [--font "Font Name"]
+  单个文件:  uv run python3 convert.py input.md [output.pdf] [--font "Font Name"]
+  批量:      uv run python3 convert.py input1.md input2.md ... [--font "Font Name"]
+  目录:      uv run python3 convert.py ./markdown_dir/ [--font "Font Name"]
+  Shell 通配: uv run python3 convert.py lectures/*.md [--font "Font Name"]
 
 依赖（需在项目 venv 中安装）:
   uv add weasyprint marko latex2mathml
@@ -12,6 +15,7 @@
   - 本地图片 / Base64 图片嵌入
   - 中文字体可选用系统安装的任意字体
   - 表格、代码块、引用完整支持
+  - 批量：多个文件或一个目录，自动转换所有 .md
 """
 
 import sys, os, re, subprocess
@@ -224,18 +228,46 @@ def convert(md_path: str, pdf_path: str | None = None, font: str | None = None) 
     return pdf_path
 
 
-if __name__ == '__main__':
-    _check_deps()
-
-    argv = sys.argv[1:]
+def _parse_args(argv: list[str]) -> tuple[list[str], str | None]:
+    """解析 --font 参数，返回 (文件列表, 字体名)"""
     font = None
     if '--font' in argv:
         i = argv.index('--font')
         font = argv[i + 1] if i + 1 < len(argv) else None
         argv = argv[:i] + argv[i + 2:] if font else argv[:i] + argv[i + 1:]
 
-    if len(argv) < 1:
+    # 收集所有输入路径
+    inputs: list[str] = []
+    for a in argv:
+        a = os.path.expanduser(a)
+        if os.path.isdir(a):
+            # 目录 → 扫所有 .md
+            inputs.extend(os.path.join(a, f) for f in sorted(os.listdir(a)) if f.endswith('.md'))
+        elif os.path.isfile(a):
+            inputs.append(a)
+        else:
+            print(f"⚠️ 跳过（不存在）: {a}")
+    return inputs, font
+
+
+if __name__ == '__main__':
+    _check_deps()
+
+    inputs, font = _parse_args(sys.argv[1:])
+    if not inputs:
         print(__doc__)
         sys.exit(1)
 
-    convert(argv[0], argv[1] if len(argv) > 1 else None, font)
+    results = []
+    for i, md in enumerate(inputs, 1):
+        print(f"[{i}/{len(inputs)}] {md}")
+        try:
+            pdf = convert(md, None, font)
+            results.append((md, pdf, None))
+        except Exception as e:
+            results.append((md, None, str(e)))
+            print(f"   ❌ {e}")
+
+    ok = sum(1 for _, _, err in results if err is None)
+    fail = sum(1 for _, _, err in results if err is not None)
+    print(f"\n完成: {ok} 成功, {fail} 失败  (共 {len(results)} 个文件)")
