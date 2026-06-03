@@ -23,6 +23,9 @@
 - `ocr-md-polish`：OCR生成Markdownの数式レンダリング問題（添字、指数グループ化、ネストされたデリミタ）を修正し、画像周辺のOCR重複テキストを削除
   > 特徴：1. 欠落した添字を修正（x0 → x_0） 2. 指数グループ化を修正（e^x arctan(x) → e^{x \arctan(x)}） 3. ネストされた$...$数式モードを統合 4. tesseract OCR検証による重複除去
 
+- `md-to-pdf`：Markdown文書（LaTeX数式・画像・テーブル含む）を美しいPDFに変換。PandocやLaTeXエンジン不要の純Python実装
+  > 特徴：1. LaTeX数式をMathMLにレンダリング（分数/極限/積分/上下添字） 2. ローカル画像・Base64画像を埋め込み 3. 日本語/中国語フォント選択可能（霞鷲文楷/Noto Serif CJK SC/Noto Sans SC） 4. バッチ変換対応（複数ファイル/ディレクトリ/ワイルドカード） 5. 依存関係自動チェック、ocr-md-polishと組み合わせてOCR→洗浄→PDFパイプラインを形成
+
 ## プログラミング支援関連
 
 - `find-docs`：Context7 CLIを使用して最新の開発技術ドキュメント、APIリファレンス、コード例を検索

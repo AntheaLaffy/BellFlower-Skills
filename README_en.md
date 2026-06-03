@@ -27,6 +27,9 @@ You may also put it into a project's `skills` folder instead.
 - `ocr-md-polish`: Fix formula rendering issues in OCR-generated Markdown (subscripts, exponent grouping, nested delimiters), clean up OCR-duplicated text near images
   > Features: 1. Fix missing subscripts (x0 → x_0) 2. Fix exponent grouping (e^x arctan(x) → e^{x \arctan(x)}) 3. Merge nested $...$ math mode 4. Tesseract OCR verification for dedup
 
+- `md-to-pdf`: Convert Markdown with LaTeX math, images, and tables into a polished PDF. Pure Python — no Pandoc or LaTeX needed.
+  > Features: 1. LaTeX → MathML rendering (fractions/limits/integrals/subscripts) 2. Local & Base64 image embedding 3. CJK font selection (LXGW WenKai / Noto Serif CJK SC / Noto Sans SC) 4. Batch conversion (multi-file / directory / glob) 5. Auto-dependency check, chains with ocr-md-polish for OCR→clean→PDF pipeline
+
 ## Programming help
 
 - `find-docs`: Retrieve up-to-date documentation, API references, and code examples for any developer technology using the Context7 CLI
