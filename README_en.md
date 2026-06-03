@@ -18,11 +18,17 @@ You may also put it into a project's `skills` folder instead.
 
 ## Document processing
 
-- `pdf-math-convert`: Convert PDFs into Markdown text for easier further editing.
-
-> Features: 1. Supports converting math formulas to LaTeX format  2. Embeds images as Base64
+- `pdf-math-convert`: Convert math-heavy PDFs (lecture notes, textbooks, papers) into clean Markdown with proper LaTeX math and image handling
+  > Features: 1. Auto-detect and fix formula placeholders 2. LaTeX math wrapping 3. Base64 embedded or referenced image mode 4. Batch parallel processing
 
 - `markdown-translate`: Translate Markdown text with LLM, preserving LaTeX math, code blocks, images, and all formatting
+  > Features: 1. Protects math/code/images from translation 2. Batch parallel translation 3. Post-translation integrity verification 4. Large file chunked translation
 
-> Features: 1. Protects math/code/images from translation  2. Batch parallel translation  3. Post-translation integrity verification
+- `ocr-md-polish`: Fix formula rendering issues in OCR-generated Markdown (subscripts, exponent grouping, nested delimiters), clean up OCR-duplicated text near images
+  > Features: 1. Fix missing subscripts (x0 → x_0) 2. Fix exponent grouping (e^x arctan(x) → e^{x \arctan(x)}) 3. Merge nested $...$ math mode 4. Tesseract OCR verification for dedup
+
+## Programming help
+
+- `find-docs`: Retrieve up-to-date documentation, API references, and code examples for any developer technology using the Context7 CLI
+  > Features: 1. More current and accurate than training data 2. Version-specific queries 3. Support for major frameworks/libraries/tools
 
