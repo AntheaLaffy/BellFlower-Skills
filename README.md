@@ -23,8 +23,8 @@
 - `ocr-md-polish`：修复OCR生成的Markdown文件中的公式渲染问题（下标、指数分组、嵌套定界符），清理图片附近OCR重复文本
   > 特色：1. 修复缺失的下标（x0 → x_0） 2. 修复指数分组（e^x arctan(x) → e^{x \arctan(x)}） 3. 合并嵌套的$...$数学模式 4. 支持tesseract OCR验证去重
 
-- `md-to-pdf`：将Markdown文档（含LaTeX公式、图片、表格）转为精美PDF，纯Python实现无需Pandoc或LaTeX引擎
-  > 特色：1. LaTeX公式渲染为MathML（分数/极限/积分/上下标全支持） 2. 本地图片和Base64图片内嵌 3. 中文/日文字体自由选择（霞鹜文楷/思源宋体/思源黑体） 4. 支持批量转换（多文件/目录/通配） 5. 依赖自动检测，配合ocr-md-polish可形成完整OCR→清洗→PDF流水线
+- `md-to-pdf`：将Markdown文档（含LaTeX公式、图片、表格）转为精美PDF；**双引擎** —— 默认纯Python weasyprint；复杂公式（`bmatrix/pmatrix/vmatrix`、行列式、列向量、嵌套分式）建议用 `--engine chromium`（需系统安装chromium），原生MathML对矩阵渲染更准确
+  > 特色：1. LaTeX公式渲染为MathML（分数/极限/积分/上下标全支持） 2. 本地图片和Base64图片内嵌 3. 中文/日文字体自由选择（霞鹜文楷/思源宋体/思源黑体） 4. 支持批量转换（多文件/目录/通配） 5. **双渲染引擎**（weasyprint / chromium headless），可按需切换，配合ocr-md-polish可形成完整OCR→清洗→PDF流水线
 
 ## 编程辅助类
 

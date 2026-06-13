@@ -27,8 +27,8 @@ You may also put it into a project's `skills` folder instead.
 - `ocr-md-polish`: Fix formula rendering issues in OCR-generated Markdown (subscripts, exponent grouping, nested delimiters), clean up OCR-duplicated text near images
   > Features: 1. Fix missing subscripts (x0 → x_0) 2. Fix exponent grouping (e^x arctan(x) → e^{x \arctan(x)}) 3. Merge nested $...$ math mode 4. Tesseract OCR verification for dedup
 
-- `md-to-pdf`: Convert Markdown with LaTeX math, images, and tables into a polished PDF. Pure Python — no Pandoc or LaTeX needed.
-  > Features: 1. LaTeX → MathML rendering (fractions/limits/integrals/subscripts) 2. Local & Base64 image embedding 3. CJK font selection (LXGW WenKai / Noto Serif CJK SC / Noto Sans SC) 4. Batch conversion (multi-file / directory / glob) 5. Auto-dependency check, chains with ocr-md-polish for OCR→clean→PDF pipeline
+- `md-to-pdf`：Convert Markdown with LaTeX math, images, and tables into a polished PDF. **Two engines** — default pure-Python weasyprint; for complex formulas (`bmatrix/pmatrix/vmatrix`, determinants, column vectors, nested fractions) use `--engine chromium` (system chromium required); native MathML gives much better matrix rendering.
+  > Features: 1. LaTeX → MathML rendering (fractions/limits/integrals/subscripts) 2. Local & Base64 image embedding 3. CJK font selection (LXGW WenKai / Noto Serif CJK SC / Noto Sans SC) 4. Batch conversion (multi-file / directory / glob) 5. **Dual rendering engine** (weasyprint / chromium headless), choose per document; chains with ocr-md-polish for a complete OCR→clean→PDF pipeline
 
 ## Programming help
 
